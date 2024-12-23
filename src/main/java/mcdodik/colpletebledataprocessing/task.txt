@@ -1,0 +1,120 @@
+2. Параллельная обработка данных с использованием CompletableFuture
+Описание: Напиши программу для параллельной обработки большого списка данных.
+
+Разбей данные на части.
+Каждая часть обрабатывается с использованием CompletableFuture.
+После обработки объединяй результаты.
+Ключевые моменты:
+
+Покажи понимание цепочек вызовов (thenApply, thenCombine).
+Используй асинхронные методы для оптимизации производительности.
+
+
+Теория и рекомендации для выполнения задачи "Параллельная обработка данных с использованием CompletableFuture"
+1. Что такое CompletableFuture
+CompletableFuture — это класс в Java, который позволяет:
+
+Выполнять задачи асинхронно и неблокирующе.
+Строить цепочки обработки задач с использованием методов, таких как thenApply, thenAccept, и т. д.
+Комбинировать несколько задач, выполняющихся параллельно.
+CompletableFuture доступен в пакете java.util.concurrent с версии Java 8.
+
+2. Основные методы CompletableFuture
+Создание задач:
+
+supplyAsync(Supplier<T>): запускает задачу в фоновом потоке и возвращает результат.
+runAsync(Runnable): запускает задачу без возвращаемого результата.
+Можно передать кастомный Executor для управления потоками.
+Обработка результата:
+
+thenApply(Function<T, R>): принимает результат и возвращает новый результат.
+thenAccept(Consumer<T>): принимает результат и ничего не возвращает.
+thenRun(Runnable): запускает задачу, но не использует результат.
+Комбинирование задач:
+
+thenCombine: объединяет результаты двух задач.
+allOf: запускает несколько задач параллельно и ожидает завершения всех.
+anyOf: возвращает результат первой завершённой задачи.
+Обработка ошибок:
+
+exceptionally(Function<Throwable, T>): обрабатывает исключения и предоставляет запасной результат.
+handle: позволяет обрабатывать результат и исключение вместе.
+3. Пример использования
+Пример: Обработка списка чисел.
+
+java
+Копировать код
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.*;
+
+public class CompletableFutureExample {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
+        List<Integer> numbers = IntStream.range(1, 21).boxed().collect(Collectors.toList());
+
+        // Разделяем список на подсписки
+        List<List<Integer>> partitions = partitionList(numbers, 5);
+
+        // Обрабатываем каждую часть параллельно
+        List<CompletableFuture<Integer>> futures = partitions.stream()
+            .map(part -> CompletableFuture.supplyAsync(() -> processPartition(part)))
+            .collect(Collectors.toList());
+
+        // Собираем результаты
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+
+        // Ждем завершения всех задач и объединяем результаты
+        allDone.join();
+        int totalSum = futures.stream()
+            .map(CompletableFuture::join) // Ожидание завершения каждой задачи
+            .mapToInt(Integer::intValue)
+            .sum();
+
+        System.out.println("Total Sum: " + totalSum);
+    }
+
+    // Метод для обработки части данных
+    private static int processPartition(List<Integer> partition) {
+        return partition.stream().mapToInt(Integer::intValue).sum();
+    }
+
+    // Метод для разбиения списка на подсписки
+    private static <T> List<List<T>> partitionList(List<T> list, int size) {
+        List<List<T>> partitions = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += size) {
+            partitions.add(list.subList(i, Math.min(i + size, list.size())));
+        }
+        return partitions;
+    }
+}
+4. Рекомендации по реализации
+Оптимизация потоков:
+
+По умолчанию CompletableFuture использует общий ForkJoinPool. Если задачи ресурсоемкие, передайте свой Executor:
+java
+Копировать код
+ExecutorService executor = Executors.newFixedThreadPool(4);
+CompletableFuture.supplyAsync(() -> doWork(), executor);
+Обработка исключений:
+
+Добавь обработку ошибок, чтобы не прерывать выполнение остальных задач:
+java
+Копировать код
+future.exceptionally(ex -> {
+    System.out.println("Error: " + ex.getMessage());
+    return defaultValue;
+});
+Минимизация блокировок:
+
+Избегай прямого вызова get(), используй неблокирующие методы join() или обработку результата через цепочки.
+Тестирование на больших данных:
+
+Проверь на больших объемах данных, чтобы убедиться, что пул потоков справляется.
+Чтение документации:
+
+Документация по CompletableFuture содержит подробные описания методов.
+5. Идеи для усложнения задачи
+Обработай данные из реального источника, например, из базы данных или API.
+Добавь этапы предобработки и постобработки для каждой части.
+Используй thenCombine для объединения результатов нескольких связанных задач.
+Пробуй! Если возникнут сложности, обращайся.
